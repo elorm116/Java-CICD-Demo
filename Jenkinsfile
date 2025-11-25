@@ -17,10 +17,17 @@ pipeline {
                         -DnewVersion=\\\${parsedVersion.majorVersion}.\\\${parsedVersion.minorVersion}.\\\${parsedVersion.nextIncrementalVersion} \
                         versions:commit'
                     
-                    // Write version to a file, then read it
-                    sh '''
-                        grep -m1 '<version>' pom.xml | sed 's/.*<version>\\([^<]*\\)<\\/version>.*/\\1/' | tr -d ' \\t' > version.txt
-                    '''
+                    // Debug: Show what grep finds
+                    sh 'echo "=== First version tag in pom.xml ==="'
+                    sh 'grep -m1 "<version>" pom.xml'
+                    
+                    // Try simplest possible extraction
+                    sh 'grep -m1 "<version>" pom.xml | cut -d">" -f2 | cut -d"<" -f1 > version.txt'
+                    
+                    // Debug: Show file contents
+                    sh 'echo "=== Content of version.txt ==="'
+                    sh 'cat version.txt'
+                    sh 'echo "=== End of version.txt ==="'
                     
                     env.IMAGE_VERSION = readFile('version.txt').trim()
                     echo "✅ Set IMAGE_VERSION to: ${env.IMAGE_VERSION}"
@@ -56,7 +63,6 @@ pipeline {
             steps {
                 script {
                     echo 'Deploying Docker image to EC2...'
-                    echo "Would deploy: host.docker.internal:8083/my-app:${env.IMAGE_VERSION}"
                 }
             }
         }
@@ -88,8 +94,6 @@ pipeline {
         success {
             echo "✅ Pipeline completed successfully!"
             echo "🚀 Built and pushed: my-app:${env.IMAGE_VERSION}"
-            echo "📝 Version committed to repository"
-            echo "🎯 Docker image available at: host.docker.internal:8083/my-app:${env.IMAGE_VERSION}"
         }
     }
 }
