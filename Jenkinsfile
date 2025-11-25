@@ -17,15 +17,24 @@ pipeline {
                         -DnewVersion=\\\${parsedVersion.majorVersion}.\\\${parsedVersion.minorVersion}.\\\${parsedVersion.nextIncrementalVersion} \
                         versions:commit'
                     
-                    // Read pom.xml and extract version using Groovy regex
-                    def pomContent = readFile('pom.xml')
-                    def versionMatcher = (pomContent =~ /<version>([0-9]+\.[0-9]+\.[0-9]+)<\/version>/)
+                    // Extract version from the specific location in pom.xml
+                    // This gets the version that comes after <artifactId>java-cicd-demo</artifactId>
+                    def version = sh(
+                        script: '''
+                            grep -A 1 '<artifactId>java-cicd-demo</artifactId>' pom.xml | \
+                            grep '<version>' | \
+                            sed 's/.*<version>\\(.*\\)<\\/version>.*/\\1/' | \
+                            tr -d ' '
+                        ''',
+                        returnStdout: true
+                    ).trim()
                     
-                    if (versionMatcher.find()) {
-                        env.IMAGE_VERSION = versionMatcher.group(1)
-                        echo "✅ Set IMAGE_VERSION to: ${env.IMAGE_VERSION}"
-                    } else {
-                        error("Failed to extract version from pom.xml")
+                    env.IMAGE_VERSION = version
+                    echo "✅ Set IMAGE_VERSION to: ${env.IMAGE_VERSION}"
+                    
+                    // Validate version format
+                    if (!env.IMAGE_VERSION || env.IMAGE_VERSION == 'null' || !(env.IMAGE_VERSION =~ /\d+\.\d+\.\d+/)) {
+                        error("❌ Invalid version extracted: ${env.IMAGE_VERSION}")
                     }
                 }
             }
@@ -65,14 +74,14 @@ pipeline {
                         sh 'git config user.name "Jenkins CI"'
                         sh "git remote set-url origin https://elorm116:\${GITHUB_TOKEN}@github.com/elorm116/java-cicd-demo.git"
                         sh 'git add pom.xml'
-                        sh '''
+                        sh """
                             if git diff --cached --quiet; then
                                 echo "No changes to commit"
                             else
-                                git commit -m "ci: version bump to ${IMAGE_VERSION} [skip ci]"
+                                git commit -m "ci: version bump to ${env.IMAGE_VERSION} [skip ci]"
                                 git push origin HEAD:main
                             fi
-                        '''
+                        """
                     }
                 }
             }
