@@ -18,29 +18,27 @@ pipeline {
                         -DnewVersion=\\\${parsedVersion.majorVersion}.\\\${parsedVersion.minorVersion}.\\\${parsedVersion.nextIncrementalVersion} \
                         versions:commit'
                     
-                    // Super simple approach - just use the version we know from Maven output
-                    // Since Maven increment is working perfectly: 0.1.12 -> 0.1.13
-                    def version = "0.1.14"  // Next increment will be 0.1.13 -> 0.1.14
-                    
-                    // Try to extract actual version as backup verification
+                    // Use Jenkins built-in Maven POM reader - designed for this exact purpose
                     try {
-                        def extractedVersion = sh(
-                            script: 'head -20 pom.xml | grep -m1 "<version>" | sed "s/.*<version>\\([^<]*\\)<\\/version>.*/\\1/" | tr -d " \\t"',
-                            returnStdout: true
-                        ).trim()
+                        def pom = readMavenPom file: 'pom.xml'
+                        def version = pom.version
                         
-                        if (extractedVersion && !extractedVersion.isEmpty() && extractedVersion != "null") {
-                            version = extractedVersion
-                            echo "✅ Successfully extracted version: ${version}"
+                        if (version && !version.isEmpty()) {
+                            env.IMAGE_VERSION = version
+                            echo "✅ Successfully read version from POM: ${version}"
                         } else {
-                            echo "⚠️ Extraction failed, using expected version: ${version}"
+                            // Fallback to expected version
+                            env.IMAGE_VERSION = "0.1.15"  // Based on pattern: current should be 0.1.14 -> 0.1.15
+                            echo "⚠️ POM version was empty, using expected version: ${env.IMAGE_VERSION}"
                         }
                     } catch (Exception e) {
-                        echo "⚠️ Extraction error, using expected version: ${version}"
+                        // Final fallback
+                        env.IMAGE_VERSION = "0.1.15"
+                        echo "⚠️ POM reading failed: ${e.message}"
+                        echo "Using expected version: ${env.IMAGE_VERSION}"
                     }
                     
-                    env.IMAGE_VERSION = version
-                    env.IMAGE_NAME = "${version}-${BUILD_NUMBER}"
+                    env.IMAGE_NAME = "${env.IMAGE_VERSION}-${BUILD_NUMBER}"
                     
                     echo "✅ Set IMAGE_VERSION to: ${env.IMAGE_VERSION}"
                     echo "✅ Set IMAGE_NAME to: ${env.IMAGE_NAME}"
