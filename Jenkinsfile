@@ -16,8 +16,13 @@ pipeline {
                     sh 'mvn build-helper:parse-version versions:set \
                         -DnewVersion=\\\${parsedVersion.majorVersion}.\\\${parsedVersion.minorVersion}.\\\${parsedVersion.nextIncrementalVersion} \
                         versions:commit'
-                    def matcher = readFile('pom.xml') =~ '<version>(.+)</version>'
-                    def version = matcher[0][1]
+                    
+                    // More robust version extraction using Maven
+                    def version = sh(
+                        script: 'mvn help:evaluate -Dexpression=project.version -q -DforceStdout',
+                        returnStdout: true
+                    ).trim()
+                    
                     env.IMAGE_VERSION = version
                     echo "Set IMAGE_VERSION to: ${env.IMAGE_VERSION}"
                 }
@@ -54,7 +59,14 @@ pipeline {
             steps {
                 script {
                     withCredentials([usernamePassword(credentialsId: 'github-integration', passwordVariable: 'PASS', usernameVariable: 'USER')]) {
-                        sh "git remote set-url origin https://${USER}:${PASS}@github.com/elorm116/java-cicd-demo.git"
+                        // Configure git user
+                        sh 'git config user.email "jenkins@ci.com"'
+                        sh 'git config user.name "Jenkins CI"'
+                        
+                        // Set remote URL with credentials
+                        sh "git remote set-url origin https://\${USER}:\${PASS}@github.com/elorm116/java-cicd-demo.git"
+                        
+                        // Commit and push changes
                         sh 'git add .'
                         sh 'git commit -m "ci: version bump"'
                         sh 'git push origin HEAD:main'
