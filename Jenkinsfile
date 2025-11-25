@@ -14,20 +14,32 @@ pipeline {
             steps {
                 script {
                     echo "Incrementing application version..."
-                    // Use separate commands to avoid shell substitution issues
                     sh 'mvn build-helper:parse-version versions:set -DnewVersion=\\${parsedVersion.majorVersion}.\\${parsedVersion.minorVersion}.\\${parsedVersion.nextIncrementalVersion} versions:commit'
 
-                    // Get new version with fallback method for reliability
-                    def version = sh(
-                        script: '''
-                            mvn help:evaluate -Dexpression=project.version -q -DforceStdout 2>/dev/null | grep -v "\\[" | tail -1 || \
-                            grep -m1 "<version>" pom.xml | sed "s/.*<version>\\([^<]*\\)<\\/version>.*/\\1/" | tr -d " \\t"
-                        ''',
-                        returnStdout: true
-                    ).trim()
+                    // Use the most reliable method - write to file and read back
+                    sh '''
+                        # Extract version using multiple methods for reliability
+                        mvn help:evaluate -Dexpression=project.version -q -DforceStdout 2>/dev/null > version.tmp || \
+                        grep -A3 "<groupId>com.anthony.demo</groupId>" pom.xml | grep "<version>" | head -1 | sed 's/.*<version>\\([^<]*\\)<\\/version>.*/\\1/' | tr -d ' \\t' > version.tmp || \
+                        awk '/<groupId>com\\.anthony\\.demo<\\/groupId>/{getline; getline; if($0 ~ /<version>/){gsub(/<[^>]*>/,""); gsub(/^[ \\t]+|[ \\t]+$/,""); print}}' pom.xml > version.tmp
+                    '''
                     
-                    env.IMAGE_VERSION = version
+                    def versionFileContent = readFile('version.tmp').trim()
+                    
+                    // If file is empty or contains unwanted content, fallback to simple extraction
+                    if (!versionFileContent || versionFileContent.contains('[') || versionFileContent.contains('INFO')) {
+                        echo "Maven help:evaluate failed, using direct XML parsing..."
+                        sh 'grep -A3 "<groupId>com.anthony.demo</groupId>" pom.xml | grep "<version>" | head -1 | sed "s/.*<version>\\([^<]*\\)<\\/version>.*/\\1/" | tr -d " \\t" > version.tmp'
+                        versionFileContent = readFile('version.tmp').trim()
+                    }
+                    
+                    env.IMAGE_VERSION = versionFileContent
                     echo "Set IMAGE_VERSION to: ${env.IMAGE_VERSION}"
+                    
+                    // Validate version format
+                    if (!env.IMAGE_VERSION.matches(/^\d+\.\d+\.\d+$/)) {
+                        error("Invalid version format: ${env.IMAGE_VERSION}")
+                    }
                 }
             }
         }
@@ -46,7 +58,6 @@ pipeline {
                 script {
                     echo "Building Docker image..."
                     withCredentials([usernamePassword(credentialsId: 'docker-nexus-repo', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-                        // Clean up Docker to fix snapshot issues
                         sh 'docker system prune -f'
                         sh "docker build --no-cache -t host.docker.internal:8083/my-app:${env.IMAGE_VERSION} ."
                         sh "echo \$PASS | docker login host.docker.internal:8083 -u \$USER --password-stdin"
@@ -73,10 +84,8 @@ pipeline {
                         sh 'git config user.name "Jenkins CI"'
                         sh "git remote set-url origin https://elorm116:\${GITHUB_TOKEN}@github.com/elorm116/java-cicd-demo.git"
                         
-                        // Only add pom.xml to avoid committing unnecessary files
                         sh 'git add pom.xml'
                         
-                        // Only commit if there are changes, and add [skip ci] to prevent infinite loops
                         sh """
                             if ! git diff --cached --quiet; then
                                 git commit -m "ci: version bump to ${env.IMAGE_VERSION} [skip ci]"
@@ -102,7 +111,6 @@ pipeline {
             echo "🔍 Check the logs above for details"
         }
         always {
-            // Clean up any temporary files
             sh 'rm -f version.tmp'
         }
     }
