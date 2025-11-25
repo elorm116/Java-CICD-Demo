@@ -14,13 +14,8 @@ pipeline {
             steps {
                 script {
                     echo "Incrementing application version..."
-                    // Increment version properly
-                    sh '''
-                        mvn build-helper:parse-version \
-                            versions:set \
-                            -DnewVersion=${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.nextIncrementalVersion} \
-                            versions:commit
-                    '''
+                    // Use separate commands to avoid shell substitution issues
+                    sh 'mvn build-helper:parse-version versions:set -DnewVersion=\\${parsedVersion.majorVersion}.\\${parsedVersion.minorVersion}.\\${parsedVersion.nextIncrementalVersion} versions:commit'
 
                     // Get new version with fallback method for reliability
                     def version = sh(
@@ -82,14 +77,14 @@ pipeline {
                         sh 'git add pom.xml'
                         
                         // Only commit if there are changes, and add [skip ci] to prevent infinite loops
-                        sh '''
+                        sh """
                             if ! git diff --cached --quiet; then
-                                git commit -m "ci: version bump to ${IMAGE_VERSION} [skip ci]"
+                                git commit -m "ci: version bump to ${env.IMAGE_VERSION} [skip ci]"
                                 git push origin HEAD:main
                             else
                                 echo "No changes to commit"
                             fi
-                        '''
+                        """
                     }
                 }
             }
