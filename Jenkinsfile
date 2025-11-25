@@ -17,15 +17,9 @@ pipeline {
                         -DnewVersion=\\\${parsedVersion.majorVersion}.\\\${parsedVersion.minorVersion}.\\\${parsedVersion.nextIncrementalVersion} \
                         versions:commit'
                     
-                    // Extract version from the specific location in pom.xml
-                    // This gets the version that comes after <artifactId>java-cicd-demo</artifactId>
+                    // Simple one-liner to extract version
                     def version = sh(
-                        script: '''
-                            grep -A 1 '<artifactId>java-cicd-demo</artifactId>' pom.xml | \
-                            grep '<version>' | \
-                            sed 's/.*<version>\\(.*\\)<\\/version>.*/\\1/' | \
-                            tr -d ' '
-                        ''',
+                        script: "awk '/<artifactId>java-cicd-demo<\\/artifactId>/{getline; getline; print}' pom.xml | sed 's/.*<version>\\(.*\\)<\\/version>.*/\\1/' | tr -d ' '",
                         returnStdout: true
                     ).trim()
                     
@@ -33,7 +27,7 @@ pipeline {
                     echo "✅ Set IMAGE_VERSION to: ${env.IMAGE_VERSION}"
                     
                     // Validate version format
-                    if (!env.IMAGE_VERSION || env.IMAGE_VERSION == 'null' || !(env.IMAGE_VERSION =~ /\d+\.\d+\.\d+/)) {
+                    if (!env.IMAGE_VERSION || env.IMAGE_VERSION == 'null' || !(env.IMAGE_VERSION ==~ /\d+\.\d+\.\d+/)) {
                         error("❌ Invalid version extracted: ${env.IMAGE_VERSION}")
                     }
                 }
