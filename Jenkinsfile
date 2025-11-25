@@ -17,9 +17,9 @@ pipeline {
                         -DnewVersion=\\\${parsedVersion.majorVersion}.\\\${parsedVersion.minorVersion}.\\\${parsedVersion.nextIncrementalVersion} \
                         versions:commit'
                     
-                    // Use Maven to extract the actual project version
+                    // Extract version from the updated pom.xml after the version increment
                     def version = sh(
-                        script: 'mvn help:evaluate -Dexpression=project.version -q -DforceStdout',
+                        script: 'grep -A2 "<artifactId>java-cicd-demo</artifactId>" pom.xml | grep "<version>" | sed "s/.*<version>\\\\(.*\\\\)<\\/version>.*/\\\\1/" | tr -d " \\t"',
                         returnStdout: true
                     ).trim()
                     
