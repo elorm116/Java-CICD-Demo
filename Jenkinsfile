@@ -17,11 +17,19 @@ pipeline {
                         -DnewVersion=\\\${parsedVersion.majorVersion}.\\\${parsedVersion.minorVersion}.\\\${parsedVersion.nextIncrementalVersion} \
                         versions:commit'
                     
-                    // Remove -q flag and add explicit error handling
-                    def version = sh(
-                        script: 'mvn help:evaluate -Dexpression=project.version -DforceStdout 2>/dev/null | grep -v "\\[" | tail -1',
-                        returnStdout: true
-                    ).trim()
+                    // Write version to file and read it back - foolproof method
+                    sh '''
+                        # Extract version and write to temp file
+                        grep -A 5 "<groupId>com.anthony.demo</groupId>" pom.xml | \
+                        grep "<version>" | \
+                        head -1 | \
+                        cut -d'>' -f2 | \
+                        cut -d'<' -f1 | \
+                        tr -d ' \\t\\n' > version.tmp
+                    '''
+                    
+                    def version = readFile('version.tmp').trim()
+                    sh 'rm -f version.tmp'
                     
                     env.IMAGE_VERSION = version
                     echo "Set IMAGE_VERSION to: ${env.IMAGE_VERSION}"
