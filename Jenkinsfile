@@ -17,9 +17,9 @@ pipeline {
                         -DnewVersion=\\\${parsedVersion.majorVersion}.\\\${parsedVersion.minorVersion}.\\\${parsedVersion.nextIncrementalVersion} \
                         versions:commit'
                     
-                    // Use Maven to get the version - much more reliable
+                    // Remove -q flag and add explicit error handling
                     def version = sh(
-                        script: 'mvn help:evaluate -Dexpression=project.version -q -DforceStdout',
+                        script: 'mvn help:evaluate -Dexpression=project.version -DforceStdout 2>/dev/null | grep -v "\\[" | tail -1',
                         returnStdout: true
                     ).trim()
                     
@@ -59,14 +59,9 @@ pipeline {
             steps {
                 script {
                     withCredentials([string(credentialsId: 'github-integration', variable: 'GITHUB_TOKEN')]) {
-                        // Configure git user
                         sh 'git config user.email "jenkins@ci.com"'
                         sh 'git config user.name "Jenkins CI"'
-                        
-                        // Set remote URL with username and token for better authentication
                         sh "git remote set-url origin https://elorm116:\${GITHUB_TOKEN}@github.com/elorm116/java-cicd-demo.git"
-                        
-                        // Commit and push changes
                         sh 'git add .'
                         sh 'git commit -m "ci: version bump"'
                         sh 'git push origin HEAD:main'
