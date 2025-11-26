@@ -5,7 +5,6 @@ pipeline {
     tools {
         maven 'maven-3.9'
     }
-    // REMOVED: environment { IMAGE_VERSION = '' }
     
     stages {
         stage('Increment Version') {
@@ -22,23 +21,23 @@ pipeline {
                         returnStdout: true
                     ).trim()
                     
-                    echo "✅ Extracted version: '${version}'"
+                    echo "Extracted version: '${version}'"
                     
                     // Fallback if extraction fails
                     if (!version || version.isEmpty()) {
-                        echo "⚠️ Extraction failed, using Maven output version"
+                        echo "Extraction failed, using Maven output version"
                         version = "0.1.19"
                     }
                     
                     // Now this assignment should work!
                     env.IMAGE_VERSION = version
-                    echo "✅ Set IMAGE_VERSION to: ${env.IMAGE_VERSION}"
+                    echo "Set IMAGE_VERSION to: ${env.IMAGE_VERSION}"
                     
                     // Validate version format
                     if (env.IMAGE_VERSION && env.IMAGE_VERSION ==~ /\d+\.\d+\.\d+/) {
-                        echo "✅ Version format validated: ${env.IMAGE_VERSION}"
+                        echo "Version format validated: ${env.IMAGE_VERSION}"
                     } else {
-                        error("❌ Invalid version format: ${env.IMAGE_VERSION}")
+                        error("Invalid version format: ${env.IMAGE_VERSION}")
                     }
                 }
             }
@@ -93,16 +92,16 @@ pipeline {
     }
     post {
         success {
-            echo "✅ Pipeline completed successfully!"
-            echo "🚀 Built and pushed: my-app:${env.IMAGE_VERSION}"
-            echo "📝 Version committed to repository"
+            echo "Pipeline completed successfully!"
+            echo "Built and pushed: my-app:${env.IMAGE_VERSION}"
+            echo "Version committed to repository"
         }
         failure {
-            echo "❌ Pipeline failed"
-            echo "🔍 Check the logs above for details"
+            echo "Pipeline failed"
+            echo "Check the logs above for details"
         }
         always {
-            echo "🧹 Cleanup completed"
+            echo "Cleanup completed"
         }
     }
 }
