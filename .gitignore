@@ -48,3 +48,12 @@ testem.log
 .DS_Store
 Thumbs.db
 api/node_modules/public-encrypt/test/test_rsa_privkey.pem
+# System Files
+.DS_Store
+Thumbs.db
+
+# Remove this specific line since it's already covered by /api/node_modules
+# api/node_modules/public-encrypt/test/test_rsa_privkey.pem
+
+# Add more comprehensive node_modules exclusion
+**/node_modules/**/node_modules/
