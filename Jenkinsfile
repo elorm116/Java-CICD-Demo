@@ -29,7 +29,7 @@ pipeline {
                                 ssh -o StrictHostKeyChecking=no ec2-user@34.239.177.1 '
                                     echo \$PASS | docker login 89690eacab5e.ngrok-free.app -u \$USER --password-stdin
                                     docker pull 89690eacab5e.ngrok-free.app/my-app:latest
-                                    docker run -d --name my-app -p 3000:3000 89690eacab5e.ngrok-free.app/my-app:latest
+                                    docker run -d --name my-app -p 3000:80 89690eacab5e.ngrok-free.app/my-app:latest
                                 '
                             """
                         }
