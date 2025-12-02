@@ -1,4 +1,4 @@
-#!/usr/bin/env groovy
+// #!/usr/bin/env groovy
 
 // pipeline {
 //     agent any
@@ -128,13 +128,14 @@ pipeline {
                     echo "Deploying application to EC2 instance..."
                     sshagent(['ec2-server-key']) {
                         sh """
-                            scp -o StrictHostKeyChecking=no docker-compose.yaml ec2-user@3.215.186.80:/home/ec2-user/
+                            scp -o StrictHostKeyChecking=no docker-compose.yml ec2-user@3.215.186.80:/home/ec2-user/
                             ssh -o StrictHostKeyChecking=no ec2-user@3.215.186.80 << 'ENDSSH'
                                 cd /home/ec2-user/
                                 docker-compose down || true
                                 docker-compose up -d
 ENDSSH
-                        """
+                            """
+                        }
                     }
                 }
             }
