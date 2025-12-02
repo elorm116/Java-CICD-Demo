@@ -1,10 +1,8 @@
-#!/usr/bin/env groovy
-
 pipeline {
     agent any
     
     environment {
-        IMAGE_TAG = "${BUILD_NUMBER}"  // Use Jenkins build number as tag
+        IMAGE_TAG = "${BUILD_NUMBER}"
         IMAGE_NAME = "ghcr.io/elorm116/my-app"
         REGISTRY = "ghcr.io"
         GITHUB_USER = "elorm116"
@@ -42,7 +40,6 @@ pipeline {
         stage('Test') {
             steps {
                 echo "Running tests..."
-                // Add your test commands here
             }
         }
 
@@ -60,11 +57,11 @@ pipeline {
                                 scp -o StrictHostKeyChecking=no docker-compose-deploy.yaml ec2-user@3.215.186.80:/home/ec2-user/docker-compose.yaml
 
                                 # Deploy on EC2
-                                ssh -o StrictHostKeyChecking=no ec2-user@3.215.186.80 << 'ENDSSH'
+                                ssh -o StrictHostKeyChecking=no ec2-user@3.215.186.80 "
                                     cd /home/ec2-user/
                                     
                                     # Login to GitHub Container Registry
-                                    echo "\$GITHUB_TOKEN" | docker login ${REGISTRY} -u ${GITHUB_USER} --password-stdin
+                                    echo '\$GITHUB_TOKEN' | docker login ${REGISTRY} -u ${GITHUB_USER} --password-stdin
                                     
                                     # Stop existing containers
                                     docker-compose down || true
@@ -75,12 +72,12 @@ pipeline {
                                     # Start new containers
                                     docker-compose up -d
                                     
-                                    # Clean up old images (optional)
+                                    # Clean up old images
                                     docker image prune -f
                                     
                                     # Logout from registry
                                     docker logout ${REGISTRY}
-ENDSSH
+                                "
                             """
                         }
                     }
@@ -92,7 +89,6 @@ ENDSSH
     post {
         always {
             script {
-                // Clean up local images to save space
                 sh """
                     docker rmi ${IMAGE_NAME}:${IMAGE_TAG} || true
                     docker rmi ${IMAGE_NAME}:latest || true
